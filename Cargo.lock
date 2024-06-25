@@ -2329,7 +2329,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rusty_csmacro"
+name = "rusty_macro"
 version = "0.1.0"
 dependencies = [
  "eframe",
