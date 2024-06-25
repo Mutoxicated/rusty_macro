@@ -1,0 +1,12 @@
+[package]
+name = "rusty_csmacro"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+eframe = "0.27.2"
+egui = "0.27.2"
+lexer = { git = "https://github.com/Mutoxicated/lexer" }
+tinyfiledialogs = "3.9.1"
+serde_derive = "1.0.203"
+serde = { version = "1.0.117", features = ["derive"] }
