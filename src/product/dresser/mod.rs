@@ -97,28 +97,33 @@ impl App for Dresser {
             let state = &mut self.app.states[self.app.current];
 
             let mut valid_macro = true;
+            ui.horizontal(|h| {
+                let but = h.button("Open");
+                h.label("Choose a path to the file");
+                if but.clicked() {
 
-            ui.label("Choose a path to the file");
-
-            let but = ui.button("Open");
-            if but.clicked() {
-
-                let selected = tinyfiledialogs::open_file_dialog("Rusty Locounter", &self.app.current_path, None);
-                if let Some(str) = selected {
-                    state.set_spath(str.as_str());
-                    app::App::set_current_path(&mut self.app.current_path, str.as_str());
+                    let selected = tinyfiledialogs::open_file_dialog("Rusty Locounter", &self.app.current_path, None);
+                    if let Some(str) = selected {
+                        state.set_spath(str.as_str());
+                        app::App::set_current_path(&mut self.app.current_path, str.as_str());
+                    }
                 }
-            }
+            });
 
             if let Some(x) = state.spath() {
                 ui.horizontal(|h| {
-                    h.label(x);
+                    h.colored_label(Color32::LIGHT_BLUE, x);
                     if state.spath().is_some() { 
                         h.menu_button("Info", |mui| {
-                            mui.colored_label(Color32::GREEN, "For this to work you have to write the macro start (\"// MACRO START\") and end (\"// MACRO END\") flag in the script.");
+                            mui.colored_label(Color32::GREEN, "For this to work you have to write the macro start (\"//MACRO START\") and end (\"//MACRO END\") flag in the script.");
                         });
                     }
                 });
+                
+                //ui.horizontal(|h| {
+                //    h.label("Comment");
+                //    h.text_edit_singleline(text);
+                //});
             }
             
             ui.menu_button("Add macro definition", |mui| {
@@ -224,10 +229,23 @@ impl App for Dresser {
             ui.colored_label(Color32::GREEN, "--Call List");
             
             egui::ScrollArea::vertical().show_rows(ui, 0.0, state.macro_call_len(), |sui, _| {
-                for call in state.macro_call_iter_mut() {
-                    let def = call.definition();
-                    sui.colored_label(Color32::DARK_GREEN, "-".to_owned()+def.name());
-                    for arg in call.arg_iter_mut() {
+                let macro_calls = state.macro_calls_mut();
+                for i in 0..macro_calls.len() {
+                    let leave = sui.horizontal(|h| {
+                        let def = macro_calls[i].definition();
+                        h.colored_label(Color32::DARK_GREEN, "-".to_owned()+def.name());
+                        let but = h.button("Remove");
+                        if but.clicked() {
+                            macro_calls.remove(i);
+                            return true
+                        }
+
+                        false
+                    });
+                    if leave.inner {
+                        break
+                    }
+                    for arg in macro_calls[i].arg_iter_mut() {
                         sui.horizontal(|h| {
                             h.label(arg.0);
                             h.text_edit_singleline(arg.1);

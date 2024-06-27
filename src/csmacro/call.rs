@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::definition::MacroDefinition;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, Clone)]
 pub struct MacroCall {
     definition:MacroDefinition,
     arguments:HashMap<String, String>

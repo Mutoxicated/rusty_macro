@@ -5,12 +5,13 @@ use serde::{Deserialize, Serialize};
 use crate::{construct, csmacro::{call::MacroCall, definition::MacroDefinition}};
 
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, Clone)]
 pub struct State {
     script_path:Option<String>,
 
     macro_definitions:Vec<MacroDefinition>,
     macro_calls:Vec<MacroCall>,
+    comment:String
 }
 
 construct!(
@@ -18,11 +19,11 @@ construct!(
     script_path = None,
 
     macro_definitions = Vec::new(),
-    macro_calls = Vec::new()
+    macro_calls = Vec::new(),
+    comment = "//".to_owned()
 );
 
 impl State {
-    
     pub fn set_spath(&mut self, path:&str) {
         self.script_path = Some(path.to_owned())
     }
@@ -92,5 +93,9 @@ impl State {
 
     pub fn macro_calls(&self) -> &Vec<MacroCall> {
         &self.macro_calls
+    }
+    
+    pub fn macro_calls_mut(&mut self) -> &mut Vec<MacroCall> {
+        &mut self.macro_calls
     }
 }
