@@ -1,5 +1,6 @@
 use std::{borrow::{Borrow, BorrowMut}, collections::{hash_map::IterMut, HashMap}};
 
+use egui::TextBuffer;
 use serde::{Deserialize, Serialize};
 
 use super::definition::MacroDefinition;
@@ -32,11 +33,21 @@ impl MacroCall {
         self.arguments.borrow_mut().iter_mut()
     }
 
-    pub fn expand(&self) -> String {
+    pub fn expand(&self, tabs:&str) -> String {
         let mut code = self.definition.code().to_owned();
         for (k, v) in self.arguments.borrow() {
             code = code.replace((String::from("$")+k.as_str()).as_str(), v.as_str());
         }
+
+        code.insert_str(0, tabs);
+        let chars:Vec<char> = code.chars().collect();
+
+        for i in (0..chars.len()).rev() {
+            if chars[i] == '\n' {
+                code.insert_str(i+1, tabs);
+            }
+        }
+        
         code
     }
 }

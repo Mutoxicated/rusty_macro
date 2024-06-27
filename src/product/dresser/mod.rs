@@ -68,10 +68,25 @@ impl App for Dresser {
                 }
                 egui::ComboBox::from_label("Select a state").selected_text(self.app.current.to_string()).show_ui(h, |cui| {
                     for i in 0..states_length {
-                        let but = cui.button(i.to_string());
-                        if but.clicked() {
-                            self.app.current = i;
-                            break;
+                        let leave = cui.horizontal(|h| {
+                            let but = h.button(i.to_string());
+                            if but.clicked() {
+                                self.app.current = i;
+                                return true
+                            }
+                            let remove = h.button("-");
+                            if remove.clicked() {
+                                self.app.states.remove(i);
+                                if self.app.current > self.app.states.len()-1 {
+                                    self.app.current -= 1;
+                                }
+                                return true
+                            }
+                            false
+                        });
+
+                        if leave.inner {
+                            break
                         }
                     }
                 });

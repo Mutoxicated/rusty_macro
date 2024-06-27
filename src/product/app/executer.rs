@@ -47,7 +47,8 @@ pub struct Executer {
     path: PathBuf,
     string: String,
     index:usize,
-    tokens:Vec<Token<CustomTokenType>>
+    tokens:Vec<Token<CustomTokenType>>,
+    tabs:String
 }
 
 pub enum ExecutionError {
@@ -85,7 +86,8 @@ impl Executer {
             path, 
             string:buf, 
             index: 0, 
-            tokens: lexer.action() 
+            tokens: lexer.action(),
+            tabs: String::new()
         }
     }
 
@@ -94,10 +96,10 @@ impl Executer {
             return Err(ExecutionError::EmptyMacroList)
         }
 
-        let mut macro_start: Option<&Token<CustomTokenType>> = None;
-        let mut macro_end: Option<&Token<CustomTokenType>> = None;
+        let mut macro_start: Option<Token<CustomTokenType>> = None;
+        let mut macro_end: Option<Token<CustomTokenType>> = None;
 
-        for token in &self.tokens {
+        for token in self.tokens.clone() {
             if let TokenType::Custom(x) = token.r#type() {
                 if x == CustomTokenType::MacroStart {
                     macro_start = Some(token);
@@ -107,7 +109,7 @@ impl Executer {
             }
         }
 
-        println!("[Debug] tokens: {:?}", &self.tokens);
+        //println!("[Debug] tokens: {:?}", &self.tokens);
 
         if macro_start.is_none() {
             return Err(ExecutionError::NoMacroStart)
@@ -119,16 +121,18 @@ impl Executer {
         let macro_start = macro_start.unwrap();
 
         self.index = macro_start.index().1;
+        
+        self.get_identation(macro_start.index().0-1);
 
-        for i in (self.index+1..macro_end.index().0).rev() {
+        for i in (self.index..macro_end.index().0).rev() {
             self.string.remove(i);
         }
 
         self.insert('\n');
-
         for call in macro_calls {
-            self.insert_str(call.expand().as_str());
-            self.insert('\n')
+            self.insert_str(call.expand(&self.tabs).as_str());
+            self.insert('\n');
+            self.insert_str(self.tabs.clone().as_str());
         }
 
         let mut file = File::options()
@@ -141,6 +145,18 @@ impl Executer {
         let _ = file.write_all(self.string.as_bytes());
 
         Ok(())
+    }
+
+    fn get_identation(&mut self, index:usize) {
+        let chars:Vec<char> = self.string.chars().collect();
+        let mut tabs = String::new();
+        let mut index = index;
+        while chars[index] == ' ' {
+            index -= 1;
+            tabs += " ";
+        }
+
+        self.tabs = tabs;
     }
 
     fn insert_str(&mut self, str:&str) {
