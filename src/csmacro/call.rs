@@ -1,17 +1,17 @@
-use std::{borrow::Borrow, collections::HashMap};
+use std::{borrow::{Borrow, BorrowMut}, collections::{hash_map::IterMut, HashMap}};
 
 use serde::{Deserialize, Serialize};
 
-use super::definition::CSMacroDefinition;
+use super::definition::MacroDefinition;
 
 #[derive(Deserialize, Serialize)]
-pub struct CSMacroCall {
-    definition: CSMacroDefinition,
+pub struct MacroCall {
+    definition:MacroDefinition,
     arguments:HashMap<String, String>
 }
 
-impl CSMacroCall {
-    pub fn new(definition:CSMacroDefinition) -> Self {
+impl MacroCall {
+    pub fn new(definition:MacroDefinition) -> Self {
         let mut arguments:HashMap<String, String> = HashMap::new();
 
         for param in definition.params_iter() {
@@ -24,10 +24,18 @@ impl CSMacroCall {
         }
     }
 
+    pub fn definition(&self) -> &MacroDefinition {
+        &self.definition
+    }
+
+    pub fn arg_iter_mut(&mut self) -> IterMut<'_, String, String> {
+        self.arguments.borrow_mut().iter_mut()
+    }
+
     pub fn expand(&self) -> String {
-        let code = self.definition.code().to_owned();
+        let mut code = self.definition.code().to_owned();
         for (k, v) in self.arguments.borrow() {
-            let _ = code.replace((String::from("$")+k.as_str()).as_str(), v.as_str());
+            code = code.replace((String::from("$")+k.as_str()).as_str(), v.as_str());
         }
         code
     }

@@ -32,6 +32,18 @@ macro_rules! construct {
             }
         }
     };
+    ($name:ident; $( { $($t:tt)*} )? $($field:ident = $val:expr),*; $var:ident { $( $t2:tt )* }) => {
+        impl $name {
+            pub fn new() -> Self {
+                $( $($t)* )?
+                let mut $var = Self {
+                    $( $field:$val ),*
+                };
+                $( $t2 )*
+                $var
+            }
+        }
+    };
 }
 
 #[macro_export]

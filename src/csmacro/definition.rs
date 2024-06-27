@@ -3,14 +3,26 @@ use std::slice::{Iter, IterMut};
 use serde::{Deserialize, Serialize};
 
 
-#[derive(Deserialize, Serialize)]
-pub struct CSMacroDefinition {
+#[derive(Deserialize, Serialize, Clone)]
+pub struct MacroDefinition {
     name: String,
     parameters: Vec<String>,
     code: String
 }
 
-impl CSMacroDefinition {
+impl PartialEq for MacroDefinition {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl Eq for MacroDefinition {
+    fn assert_receiver_is_total_eq(&self) {
+        
+    }
+}
+
+impl MacroDefinition {
     pub fn new(name:&str) -> Self {
         Self {
             name:name.to_owned(),

@@ -1,86 +1,121 @@
-use std::slice::IterMut;
+pub mod state;
+pub mod executer;
 
+use std::{fs::File, io::{Read, Write}, path::PathBuf};
 use serde::{Deserialize, Serialize};
+use state::State;
 
-use crate::{construct, csmacro::{call::CSMacroCall, definition::CSMacroDefinition}};
+use crate::construct;
 
 #[derive(Deserialize, Serialize)]
 pub struct App {
-    script_path:Option<String>,
+    pub states:Vec<State>,
+    pub current:usize,
 
-    macro_definitions:Vec<CSMacroDefinition>,
-    macro_calls:Vec<CSMacroCall>,
-
-    #[serde(skip_serializing)]
-    current_path:String,
-
-    #[serde(skip_serializing)]
-    macro_def_err: Option<String>
-
+    #[serde(skip)]
+    pub current_path:String
 }
 
 construct!(
     App;
     {
+        let res = App::read_saved_data();
+
+        if let Some(x) = res {
+            return x
+        }
+
         let current = std::env::current_dir().expect("Unable to get current dir.");
     }
-    script_path = None,
-
-    macro_definitions = Vec::new(),
-    macro_calls = Vec::new(),
-
     current_path = current.to_string_lossy().to_string(),
-    macro_def_err = None
+    states = vec![
+        State::new()
+    ],
+    current = 0
 );
 
 impl App {
-    pub fn set_spath(&mut self, path:&str) {
-        self.script_path = Some(path.to_owned())
-    }
-
-    pub fn spath(&self) -> &Option<String> {
-        &self.script_path
-    }
-
-    pub fn set_current_path(&mut self, str:&str) {
-        self.current_path = str.to_owned();
-    }
-
-    pub fn current_path(&self) -> &str {
-        self.current_path.as_str()
-    }
-
-    pub fn contains_macro_def(&self, name:&str) -> bool {
-        for mcdef in &self.macro_definitions {
-            if mcdef.name() == name {
-                return true
-            }
+    pub fn create_data_path() -> Option<PathBuf> {
+        if let Some(dir) = directories::BaseDirs::new() {
+            let config_path = dir.config_dir();
+            return Some(config_path.join("Rusty_MacroData"))
         }
-        false
+        println!("Failed to get the base directory");
+        None
     }
 
-    pub fn add_macro_def(&mut self, macro_def:CSMacroDefinition) {
-        if self.contains_macro_def(macro_def.name()) {
-            self.macro_def_err = Some(String::from("There is already a macro with that name"));
+    pub fn save_data(&self) {
+        let path = App::create_data_path();
+        if path.is_none() {
             return;
         }
-        
-        self.macro_definitions.push(macro_def);
+        let path = path.unwrap();
+
+        let result = std::fs::read_dir(&path);
+        if result.is_err() {
+            let result = std::fs::create_dir(&path);
+            if let Err(e) = result {
+                println!("{}", e);
+                return;
+            }
+        }
+
+        let abs_path = path.canonicalize().expect("Failed to canonicalize path");
+        assert!(abs_path.exists());
+
+        let result = File::options()
+            .read(false)
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(abs_path.join("app.json"));
+        if let Err(e) = result {
+            println!("Failed to create file: {}", e);
+            return;
+        }
+
+        let mut file = result.unwrap();
+
+        let string = serde_json::to_string_pretty(self).unwrap();
+
+        let res = file.write_all(string.as_bytes());
+        if let Err(e) = res {
+            println!("Failed to write file: {}", e);
+        }
     }
 
-    pub fn remove_macro_def(&mut self, i:usize) {
-        self.macro_definitions.remove(i);
+    pub fn read_saved_data() -> Option<Self> {
+        let path = App::create_data_path();
+        path.as_ref()?;
+
+        let path = path.unwrap();
+        let result = std::fs::read_dir(&path);
+        if result.is_err() {
+            return None
+        }
+
+        let abs_path = path.canonicalize().expect("Failed to canonicalize path");
+        let result = File::options()
+            .read(true)
+            .write(false)
+            .open(abs_path.join("app.json"));
+        if result.is_err() {
+            return None
+        }
+        let mut file = result.unwrap();
+
+        let mut buf = String::new();
+        let _ = file.read_to_string(&mut buf);
+
+        let res = serde_json::from_str(buf.as_str());
+        if res.is_err() {
+            return None
+        }
+
+        Some(res.unwrap())
     }
 
-    pub fn macro_def_mut(&mut self, i:usize) -> &mut CSMacroDefinition{
-        &mut self.macro_definitions[i]
-    }
-
-    pub fn macro_def_iter_mut(&mut self) -> IterMut<'_, CSMacroDefinition> {
-        self.macro_definitions.iter_mut()   
-    }
-
-    pub fn macro_def_len(&self) -> usize {
-        self.macro_definitions.len()
+    pub fn set_current_path(string:&mut String, str:&str) {
+        *string = str.to_owned();
     }
 }

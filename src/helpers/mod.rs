@@ -1,15 +1,15 @@
 pub mod macros;
 
-// pub fn contains<T: PartialEq, Eq>(list:Vec<T>, elem:T) -> Result<usize, ()> {
-//     #[allow(clippy::needless_range_loop)]
-//     for i in 0..list.len() {
-//         if list[i] == elem {
-//             return Ok(i)
-//         }
-//     }
+pub fn contains<T: PartialEq + Eq>(list:&[T], elem:T) -> Result<usize, ()> {
+    #[allow(clippy::needless_range_loop)]
+    for i in 0..list.len() {
+        if list[i] == elem {
+            return Ok(i)
+        }
+    }
 
-//     Err(())
-// }
+    Err(())
+}
 
 pub fn identical_elems<T: PartialEq + Eq>(list:&[T]) -> bool {
     #[allow(clippy::needless_range_loop)]
@@ -26,4 +26,14 @@ pub fn identical_elems<T: PartialEq + Eq>(list:&[T]) -> bool {
         }
     }
     false
+}
+
+pub fn get_loc(buf:&[u8]) -> usize {
+    let mut loc:usize = 1;
+    for byte in buf {
+        if *byte == b'\n' {
+            loc += 1;
+        }
+    }
+    loc
 }

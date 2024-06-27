@@ -10,3 +10,5 @@ lexer = { git = "https://github.com/Mutoxicated/lexer" }
 tinyfiledialogs = "3.9.1"
 serde_derive = "1.0.203"
 serde = { version = "1.0.117", features = ["derive"] }
+directories = "5.0.1"
+serde_json = "1.0.118"
