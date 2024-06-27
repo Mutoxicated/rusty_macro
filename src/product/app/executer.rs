@@ -1,28 +1,29 @@
 use std::{fmt::Display, fs::File, io::{Read, Write}, path::PathBuf};
 
-use lexer::{token::{Token, TokenEnum, TokenType}, Lexer};
+use lexer::{token::{Token, TokenEnum}, Lexer};
 
 use crate::csmacro::call::MacroCall;
 
-lexer::custom_token_enum!(
-    CustomTokenType;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TokenType {
     MacroStart,
     MacroEnd
-);
+}
 
-impl TokenEnum for CustomTokenType {
-    fn special(lexer:&mut Lexer<Self>) -> bool 
+impl TokenEnum<String> for TokenType {
+    fn out(lexer:&mut Lexer<Self, String>) -> bool 
         where Self: Sized {
 
-        use TokenType::*;
-        
-        let str = lexer.peek_str(2);
+        let comment_length = lexer.state.len();
+        let str = lexer.peek_str(comment_length);
         if str.is_none() {
             return false
         }
         let str = str.unwrap();
-        if str == "//" {
-            let string = lexer.consume_str(2);
+
+        let comment = lexer.state.clone();
+        if str == comment {
+            let string = lexer.consume_str(comment_length);
             if string.is_none() {
                 return false
             }
@@ -30,11 +31,11 @@ impl TokenEnum for CustomTokenType {
             lexer.push_str(string.as_str());
             lexer.try_lexy();
             let buf = lexer.read_buffer();
-            if buf == "//MACRO_START" {
-                lexer.add_token(Custom(CustomTokenType::MacroStart), buf.as_str());
+            if buf == comment.clone()+"MACRO_START" {
+                lexer.add_token(TokenType::MacroStart, buf.as_str());
                 return true
-            }else if buf == "//MACRO_END" {
-                lexer.add_token(Custom(CustomTokenType::MacroEnd), buf.as_str());
+            }else if buf == comment+"MACRO_END" {
+                lexer.add_token(TokenType::MacroEnd, buf.as_str());
                 return true
             }
         }
@@ -47,7 +48,7 @@ pub struct Executer {
     path: PathBuf,
     string: String,
     index:usize,
-    tokens:Vec<Token<CustomTokenType>>,
+    tokens:Vec<Token<TokenType, String>>,
     tabs:String
 }
 
@@ -74,14 +75,14 @@ impl Display for ExecutionError {
 }
 
 impl Executer {
-    pub fn new(path:PathBuf) -> Self {
+    pub fn new(path:PathBuf, comment:&str) -> Self {
         let mut buf:String = String::new();
         let mut file = File::options()
             .read(true)
             .open(&path)
             .unwrap();
         let _ = file.read_to_string(&mut buf);
-        let mut lexer:Lexer<CustomTokenType> = Lexer::new(buf.chars().collect());
+        let mut lexer:Lexer<TokenType, String> = Lexer::with_state(buf.chars().collect(), comment.to_owned());
         Self { 
             path, 
             string:buf, 
@@ -96,20 +97,18 @@ impl Executer {
             return Err(ExecutionError::EmptyMacroList)
         }
 
-        let mut macro_start: Option<Token<CustomTokenType>> = None;
-        let mut macro_end: Option<Token<CustomTokenType>> = None;
+        let mut macro_start: Option<Token<TokenType, String>> = None;
+        let mut macro_end: Option<Token<TokenType, String>> = None;
 
         for token in self.tokens.clone() {
-            if let TokenType::Custom(x) = token.r#type() {
-                if x == CustomTokenType::MacroStart {
-                    macro_start = Some(token);
-                }else if x == CustomTokenType::MacroEnd {
-                    macro_end = Some(token);
-                }
+            if token.r#type() == TokenType::MacroStart {
+                macro_start = Some(token);
+            }else if token.r#type() == TokenType::MacroEnd {
+                macro_end = Some(token);
             }
         }
 
-        //println!("[Debug] tokens: {:?}", &self.tokens);
+        println!("[Debug] tokens: {:?}", &self.tokens);
 
         if macro_start.is_none() {
             return Err(ExecutionError::NoMacroStart)
@@ -129,10 +128,15 @@ impl Executer {
         }
 
         self.insert('\n');
-        for call in macro_calls {
-            self.insert_str(call.expand(&self.tabs).as_str());
-            self.insert('\n');
-            self.insert_str(self.tabs.clone().as_str());
+        self.insert('\n');
+        self.insert_str(self.tabs.clone().as_str());
+        self.index -= self.tabs.len()+1;
+        let call_length = macro_calls.len();
+        for i in 0..call_length {
+            self.insert_str(macro_calls[i].expand(&self.tabs).as_str());
+            if i != call_length-1 {
+                self.insert('\n');
+            }
         }
 
         let mut file = File::options()

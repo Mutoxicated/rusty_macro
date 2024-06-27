@@ -57,6 +57,10 @@ impl MacroDefinition {
         self.parameters[i].as_mut_str()
     }
 
+    pub fn parameter(&self, i: usize) -> &str {
+        self.parameters[i].as_str()
+    }
+
     pub fn parameters_len(&self) -> usize {
         self.parameters.len()
     }

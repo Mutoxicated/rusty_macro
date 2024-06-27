@@ -1,22 +1,21 @@
-use std::{borrow::{Borrow, BorrowMut}, collections::{hash_map::IterMut, HashMap}};
+use std::{borrow::{Borrow}, slice::IterMut};
 
-use egui::TextBuffer;
 use serde::{Deserialize, Serialize};
 
 use super::definition::MacroDefinition;
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Clone)]
 pub struct MacroCall {
-    definition:MacroDefinition,
-    arguments:HashMap<String, String>
+    pub definition:MacroDefinition,
+    pub arguments:Vec<String>
 }
 
 impl MacroCall {
     pub fn new(definition:MacroDefinition) -> Self {
-        let mut arguments:HashMap<String, String> = HashMap::new();
+        let mut arguments:Vec<String> = Vec::new();
 
-        for param in definition.params_iter() {
-            arguments.insert(param.clone(), "".to_owned());
+        for _ in definition.params_iter() {
+            arguments.push("".to_owned());
         }
 
         Self {
@@ -29,14 +28,14 @@ impl MacroCall {
         &self.definition
     }
 
-    pub fn arg_iter_mut(&mut self) -> IterMut<'_, String, String> {
-        self.arguments.borrow_mut().iter_mut()
+    pub fn arg_iter_mut(&mut self) -> IterMut<'_, String> {
+        self.arguments.iter_mut()
     }
 
     pub fn expand(&self, tabs:&str) -> String {
         let mut code = self.definition.code().to_owned();
-        for (k, v) in self.arguments.borrow() {
-            code = code.replace((String::from("$")+k.as_str()).as_str(), v.as_str());
+        for i in 0..self.arguments.len() {
+            code = code.replace((String::from("$")+self.definition.parameter(i)).as_str(), self.arguments[i].as_str());
         }
 
         code.insert_str(0, tabs);

@@ -9,9 +9,9 @@ use crate::{construct, csmacro::{call::MacroCall, definition::MacroDefinition}};
 pub struct State {
     script_path:Option<String>,
 
-    macro_definitions:Vec<MacroDefinition>,
-    macro_calls:Vec<MacroCall>,
-    comment:String
+    pub macro_definitions:Vec<MacroDefinition>,
+    pub macro_calls:Vec<MacroCall>,
+    pub comment:String
 }
 
 construct!(

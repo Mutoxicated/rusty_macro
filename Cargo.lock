@@ -1606,8 +1606,8 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
 name = "lexer"
-version = "0.4.2"
-source = "git+https://github.com/Mutoxicated/lexer#80ef4900dd310159825cd76f1f05692861e3330b"
+version = "0.4.7"
+source = "git+https://github.com/Mutoxicated/lexer#7b9c5af76b5b7e19355275b17d2d3eda60d8b27b"
 
 [[package]]
 name = "libc"

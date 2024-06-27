@@ -94,15 +94,15 @@ impl App for Dresser {
 
             ui.separator();
 
-            let state = &mut self.app.states[self.app.current];
 
             let mut valid_macro = true;
             ui.horizontal(|h| {
+                let state = &mut self.app.states[self.app.current];
                 let but = h.button("Open");
                 h.label("Choose a path to the file");
                 if but.clicked() {
 
-                    let selected = tinyfiledialogs::open_file_dialog("Rusty Locounter", &self.app.current_path, None);
+                    let selected = tinyfiledialogs::open_file_dialog("Rusty Macro", &self.app.current_path, None);
                     if let Some(str) = selected {
                         state.set_spath(str.as_str());
                         app::App::set_current_path(&mut self.app.current_path, str.as_str());
@@ -110,20 +110,20 @@ impl App for Dresser {
                 }
             });
 
-            if let Some(x) = state.spath() {
+            if let Some(x) = self.app.states[self.app.current].spath() {
                 ui.horizontal(|h| {
                     h.colored_label(Color32::LIGHT_BLUE, x);
-                    if state.spath().is_some() { 
+                    if self.app.states[self.app.current].spath().is_some() { 
                         h.menu_button("Info", |mui| {
                             mui.colored_label(Color32::GREEN, "For this to work you have to write the macro start (\"//MACRO START\") and end (\"//MACRO END\") flag in the script.");
                         });
                     }
                 });
                 
-                //ui.horizontal(|h| {
-                //    h.label("Comment");
-                //    h.text_edit_singleline(text);
-                //});
+                ui.horizontal(|h| {
+                   h.label("Comment:");
+                   h.text_edit_singleline(&mut self.app.states[self.app.current].comment);
+                });
             }
             
             ui.menu_button("Add macro definition", |mui| {
@@ -131,7 +131,7 @@ impl App for Dresser {
                 if self.name_buf.is_empty() {
                     mui.colored_label(Color32::RED, "Macro name is empty!");
                     valid_macro = false;
-                }else if state.contains_macro_def(self.name_buf.as_str()) {
+                }else if self.app.states[self.app.current].contains_macro_def(self.name_buf.as_str()) {
                     mui.colored_label(Color32::RED, "There is already a macro with that name!");
                     valid_macro = false;
                 }
@@ -161,37 +161,47 @@ impl App for Dresser {
 
                 let but = mui.button("Add");
                 if but.clicked() && valid_macro {
-                    state.add_macro_def(
+                    self.app.states[self.app.current].add_macro_def(
                         MacroDefinition::new(&self.name_buf)
                             .set_params(self.parameters_buf.clone())
                             .set_code(self.code_buf.clone())
                     );
-                    Dresser::update_selected_macro(&mut self.current_selected_macro, state.macro_def_iter());
+                    Dresser::update_selected_macro(&mut self.current_selected_macro, self.app.states[self.app.current].macro_def_iter());
                     self.code_buf = String::from("Lorem Ipsum n shit");
                     self.parameters_buf.clear();
                     self.name_buf = String::new();
                 }
             });
-
             // MACRO DEFINITIONS
-            if state.macro_def_len() != 0 {
+            if self.app.states[self.app.current].macro_def_len() != 0 {
                 ui.colored_label(Color32::GREEN, "--Macro definitions");
-                egui::ScrollArea::vertical().show_rows(ui, 0.0, state.macro_def_len(), |sui, range| {
+                egui::ScrollArea::vertical().show_rows(ui, 0.0, self.app.states[self.app.current].macro_def_len(), |sui, range| {
                     for i in range {
-                        let macdef = state.macro_def_mut(i);
-                        sui.colored_label(Color32::DARK_GREEN,"-".to_owned()+macdef.name());
-                        sui.label("Params:");
-                        let iter = macdef.params_iter_mut();
-                        for param in iter {
-                            sui.text_edit_singleline(param);
+                        {
+                            let macdef = self.app.states[self.app.current].macro_def_mut(i);
+                            sui.colored_label(Color32::DARK_GREEN,"-".to_owned()+macdef.name());
+                            sui.label("Params:");
+                            let iter = macdef.params_iter_mut();
+                            for param in iter {
+                                sui.text_edit_singleline(param);
+                            }
+
+                            sui.label("Code:");
                         }
-    
-                        sui.label("Code:");
-                        sui.code_editor(macdef.code_string_mut());
+                        let editor = sui.code_editor(self.app.states[self.app.current].macro_definitions[i].code_string_mut());
+                      
+                        if editor.changed() {
+                            for j in 0..self.app.states[self.app.current].macro_calls.len() {
+                                let def = &self.app.states[self.app.current].macro_calls[j].definition;
+                                if def.name() ==  self.app.states[self.app.current].macro_definitions[i].name() {
+                                    self.app.states[self.app.current].macro_calls[j].definition = self.app.states[self.app.current].macro_definitions[i].clone();
+                                }
+                            }
+                        }
                         let remove = sui.button("Remove");
                         if remove.clicked() {
-                            state.remove_macro_def(i);
-                            Dresser::update_selected_macro(&mut self.current_selected_macro, state.macro_def_iter());
+                            self.app.states[self.app.current].remove_macro_def(i);
+                            Dresser::update_selected_macro(&mut self.current_selected_macro, self.app.states[self.app.current].macro_def_iter());
                             break;
                         }
                     }
@@ -245,10 +255,11 @@ impl App for Dresser {
                     if leave.inner {
                         break
                     }
-                    for arg in macro_calls[i].arg_iter_mut() {
+                    for j in 0..macro_calls[i].arguments.len() {
                         sui.horizontal(|h| {
-                            h.label(arg.0);
-                            h.text_edit_singleline(arg.1);
+                            let param: &str = macro_calls[i].definition.parameter(j);
+                            h.label(param);
+                            h.text_edit_singleline( &mut macro_calls[i].arguments[j]);
                         });
                     }
                 }
@@ -256,7 +267,7 @@ impl App for Dresser {
 
             let action = ui.button("Action");
             if action.clicked() && state.spath().is_some() {
-                let mut executer = Executer::new(PathBuf::from_str(state.spath().as_ref().unwrap().as_str()).unwrap());
+                let mut executer = Executer::new(PathBuf::from_str(state.spath().as_ref().unwrap().as_str()).unwrap(), state.comment.as_str());
                 
                 let res = executer.action(state.macro_calls());
                 if let Err(x) = res {
