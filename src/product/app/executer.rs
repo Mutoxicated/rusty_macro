@@ -92,7 +92,7 @@ impl Executer {
         }
     }
 
-    pub fn action(&mut self, macro_calls:&Vec<MacroCall>) -> Result<(), ExecutionError> {
+    pub fn action(&mut self, macro_calls:&[MacroCall]) -> Result<Option<()>, ExecutionError> {
         if macro_calls.is_empty() {
             return Err(ExecutionError::EmptyMacroList)
         }
@@ -148,7 +148,7 @@ impl Executer {
 
         let _ = file.write_all(self.string.as_bytes());
 
-        Ok(())
+        Ok(Some(()))
     }
 
     fn get_identation(&mut self, index:usize) {

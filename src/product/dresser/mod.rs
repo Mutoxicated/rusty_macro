@@ -1,7 +1,8 @@
 use std::{path::PathBuf, slice::Iter, str::FromStr};
 
 use eframe::App;
-use egui::{Color32, Id};
+use egui::{Color32, Id, Layout};
+use lazy_static::lazy_static;
 
 use crate::{construct, csmacro::definition::MacroDefinition, csmacro::call::MacroCall, csstruct, helpers};
 
@@ -15,7 +16,8 @@ csstruct!(
     pub code_buf:String,
     current_selected_macro:String,
     macro_arg_err:Option<String>,
-    exec_err:Option<ExecutionError>
+    exec_err:Option<ExecutionError>,
+    exec_success:bool
 );
 
 construct!(
@@ -26,7 +28,8 @@ construct!(
     code_buf = String::from("Lorem Ipsum n shit"),
     current_selected_macro = String::from("Macro"),
     macro_arg_err = None,
-    exec_err = None;
+    exec_err = None,
+    exec_success = false;
     value {
         let state = &mut value.app.states[value.app.current];
         Dresser::update_selected_macro(&mut value.current_selected_macro ,state.macro_def_iter());
@@ -51,6 +54,10 @@ impl Dresser {
     }
 }
 
+lazy_static!{
+    pub static ref DARK_GREEN:Color32 = Color32::from_rgb(0, 165, 0);
+}
+
 impl App for Dresser {
     fn on_exit(&mut self, _: Option<&eframe::glow::Context>) {
         self.app.save_data();
@@ -58,7 +65,8 @@ impl App for Dresser {
 
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         let states_length = self.app.states.len();
-        egui::SidePanel::new(egui::panel::Side::Left, Id::new("Settings")).show(ctx, |ui| {
+        let side_panel = Id::new("Settings");
+        egui::SidePanel::new(egui::panel::Side::Left, side_panel).show(ctx, |ui| {
             ui.set_min_width(400.0);
             // SETTINGS
             ui.horizontal(|h| {
@@ -69,9 +77,21 @@ impl App for Dresser {
                 egui::ComboBox::from_label("Select a state").selected_text(self.app.current.to_string()).show_ui(h, |cui| {
                     for i in 0..states_length {
                         let leave = cui.horizontal(|h| {
-                            let but = h.button(i.to_string());
-                            if but.clicked() {
-                                self.app.current = i;
+                            h.set_width(70.0);
+                            let layout = h.layout().with_main_justify(true);
+                            let leave = h.with_layout(layout, |lui| {
+                                let but = lui.button(i.to_string());
+                                if but.clicked() {
+                                    self.app.current = i;
+                                    self.exec_err = None;
+                                    self.exec_success = false;
+                                    self.macro_arg_err = None;
+                                    return true
+                                }
+
+                                false
+                            }).inner;
+                            if leave {
                                 return true
                             }
                             let remove = h.button("-");
@@ -80,8 +100,12 @@ impl App for Dresser {
                                 if self.app.current > self.app.states.len()-1 {
                                     self.app.current -= 1;
                                 }
+                                self.exec_err = None;
+                                self.exec_success = false;
+                                self.macro_arg_err = None;
                                 return true
                             }
+
                             false
                         });
 
@@ -115,7 +139,7 @@ impl App for Dresser {
                     h.colored_label(Color32::LIGHT_BLUE, x);
                     if self.app.states[self.app.current].spath().is_some() { 
                         h.menu_button("Info", |mui| {
-                            mui.colored_label(Color32::GREEN, "For this to work you have to write the macro start (\"//MACRO START\") and end (\"//MACRO END\") flag in the script.");
+                            mui.colored_label(Color32::LIGHT_GREEN, "For this to work you have to write the macro start \"MACRO START\" and end \"MACRO END\" flag as comments in the script.");
                         });
                     }
                 });
@@ -179,7 +203,7 @@ impl App for Dresser {
                     for i in range {
                         {
                             let macdef = self.app.states[self.app.current].macro_def_mut(i);
-                            sui.colored_label(Color32::DARK_GREEN,"-".to_owned()+macdef.name());
+                            sui.colored_label(*DARK_GREEN,"-".to_owned()+macdef.name());
                             sui.label("Params:");
                             let iter = macdef.params_iter_mut();
                             for param in iter {
@@ -243,7 +267,7 @@ impl App for Dresser {
                 for i in 0..macro_calls.len() {
                     let leave = sui.horizontal(|h| {
                         let def = macro_calls[i].definition();
-                        h.colored_label(Color32::DARK_GREEN, "-".to_owned()+def.name());
+                        h.colored_label(*DARK_GREEN, "-".to_owned()+def.name());
                         let but = h.button("Remove");
                         if but.clicked() {
                             macro_calls.remove(i);
@@ -266,18 +290,26 @@ impl App for Dresser {
             });
 
             let action = ui.button("Action");
+            if action.clicked() {
+                self.exec_success = false;
+                self.exec_err = None;
+            }
             if action.clicked() && state.spath().is_some() {
                 let mut executer = Executer::new(PathBuf::from_str(state.spath().as_ref().unwrap().as_str()).unwrap(), state.comment.as_str());
                 
                 let res = executer.action(state.macro_calls());
                 if let Err(x) = res {
                     self.exec_err = Some(x);
+                }else if let Ok(x) = res && let Some(_) = x {
+                    self.exec_success = true;
                 }
             }else if action.clicked() {
                 self.exec_err = Some(ExecutionError::NoFile);
             }
             if let Some(x) = &self.exec_err {
                 ui.colored_label(Color32::RED, format!("{}", x));
+            }else if self.exec_success {
+                ui.colored_label(Color32::GREEN, "Success!");
             }
         });
     }

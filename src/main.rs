@@ -1,3 +1,5 @@
+#![feature(let_chains)]
+
 use product::dresser::Dresser;
 
 mod csmacro;
