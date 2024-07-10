@@ -2,7 +2,7 @@
 
 use product::dresser::Dresser;
 
-mod csmacro;
+mod r#macro;
 mod product;
 mod helpers;
 

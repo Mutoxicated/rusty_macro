@@ -2,7 +2,7 @@ use std::{slice::{Iter, IterMut}};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{construct, csmacro::{call::MacroCall, definition::MacroDefinition}};
+use crate::{construct, r#macro::{call::MacroCall, definition::MacroDefinition}};
 
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Clone)]
