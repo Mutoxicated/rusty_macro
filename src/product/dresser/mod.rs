@@ -1,7 +1,7 @@
 use std::{path::PathBuf, slice::Iter, str::FromStr};
 
 use eframe::App;
-use egui::{Color32, Id, Layout};
+use egui::{Color32, Id, Layout, Style};
 use lazy_static::lazy_static;
 
 use crate::{construct, csmacro::definition::MacroDefinition, csmacro::call::MacroCall, csstruct, helpers};
@@ -262,7 +262,7 @@ impl App for Dresser {
             // CALL LIST
             ui.colored_label(Color32::GREEN, "--Call List");
             
-            egui::ScrollArea::vertical().show_rows(ui, 0.0, state.macro_call_len(), |sui, _| {
+            egui::ScrollArea::vertical().show_rows(ui, 0.0, state.macro_call_len()+2, |sui, _| {
                 let macro_calls = state.macro_calls_mut();
                 for i in 0..macro_calls.len() {
                     let leave = sui.horizontal(|h| {
@@ -287,30 +287,30 @@ impl App for Dresser {
                         });
                     }
                 }
+                let action = sui.button("Action");
+                if action.clicked() {
+                    self.exec_success = false;
+                    self.exec_err = None;
+                }
+                if action.clicked() && state.spath().is_some() {
+                    let mut executer = Executer::new(PathBuf::from_str(state.spath().as_ref().unwrap().as_str()).unwrap(), state.comment.as_str());
+                    
+                    let res = executer.action(state.macro_calls());
+                    if let Err(x) = res {
+                        self.exec_err = Some(x);
+                    }else if let Ok(x) = res && let Some(_) = x {
+                        self.exec_success = true;
+                    }
+                }else if action.clicked() {
+                    self.exec_err = Some(ExecutionError::NoFile);
+                }
+                if let Some(x) = &self.exec_err {
+                    sui.colored_label(Color32::RED, format!("{}", x));
+                }else if self.exec_success {
+                    sui.colored_label(Color32::GREEN, "Success!");
+                }
             });
 
-            let action = ui.button("Action");
-            if action.clicked() {
-                self.exec_success = false;
-                self.exec_err = None;
-            }
-            if action.clicked() && state.spath().is_some() {
-                let mut executer = Executer::new(PathBuf::from_str(state.spath().as_ref().unwrap().as_str()).unwrap(), state.comment.as_str());
-                
-                let res = executer.action(state.macro_calls());
-                if let Err(x) = res {
-                    self.exec_err = Some(x);
-                }else if let Ok(x) = res && let Some(_) = x {
-                    self.exec_success = true;
-                }
-            }else if action.clicked() {
-                self.exec_err = Some(ExecutionError::NoFile);
-            }
-            if let Some(x) = &self.exec_err {
-                ui.colored_label(Color32::RED, format!("{}", x));
-            }else if self.exec_success {
-                ui.colored_label(Color32::GREEN, "Success!");
-            }
         });
     }
 }
